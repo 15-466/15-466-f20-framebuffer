@@ -18,5 +18,6 @@ Areas for modification or improvement:
  - could use different kernels or sizes for `BlurXProgram` and `BlurYProgram` to make non-symmetric blurs for artistic effect
  - many games compute bloom effects at lower resolution (1/2 or even 1/4) because they are blurry anyway; could consider using a shader (or glBlitFramebuffer) to downsample before `blur_x_program` is run and to upsample after `blur_y_program` is run (you'll also need a few lower-resolution temporary framebuffers to sample to/from)
  - the `min` and `max` in the texelFetch functions exist because texel access beyond texture bounds is undefined unless running in robust mode; these comparisons could likely be avoided or modified to improve performance.
+ - could use `TEXTURE_RECTANGLE` instead of `TEXTURE_2D` for the framebuffers (nothing about the code requires the slightly increased functionality of a `TEXTURE_2D`)
 
 This example uses [NEST](NEST.md).
