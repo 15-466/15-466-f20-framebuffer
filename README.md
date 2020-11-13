@@ -16,3 +16,5 @@ Areas for modification or improvement:
  - the strength of the bloom effect is set by the opacity of the color returned by `BlurYProgram`. Set it to 1.0 and you'll have an "everything looks blurry" effect instead.
  - could use different kernels or sizes for `BlurXProgram` and `BlurYProgram` to make non-symmetric blurs for artistic effect
  - many games compute bloom effects at lower resolution (1/2 or even 1/4) because they are blurry anyway; could consider using a shader (or glBlitFramebuffer) to downsample before `blur_x_program` is run and to upsample after `blur_y_program` is run (you'll also need a few lower-resolution temporary framebuffers to sample to/from)
+
+This example uses [NEST](NEST.md).
