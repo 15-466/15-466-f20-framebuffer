@@ -1,6 +1,6 @@
 # 15-466 Offscreen Rendering / Framebuffer Example
 
-This example stores high-dynamic-range linear lighting information to an offscreen buffer (in 16-bit-per-channel floating point), blurs that information t
+This example stores high-dynamic-range (linear light) information to an offscreen buffer (in 16-bit-per-channel floating point), blurs that information to simulate single-scattering in the eye, and tone-maps the result for display.
 
 ![Screen Shot](screenshot.png)
 
