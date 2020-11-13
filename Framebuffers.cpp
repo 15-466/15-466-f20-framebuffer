@@ -4,6 +4,8 @@
 #include "gl_check_fb.hpp"
 #include "gl_errors.hpp"
 
+#include <array>
+
 Framebuffers framebuffers;
 
 void Framebuffers::realloc(glm::uvec2 const &drawable_size) {
