@@ -201,7 +201,7 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	glUseProgram(0);
 
 	//---- draw scene to HDR framebuffer ----
-	glBindFramebuffer(GL_FRAMEBUFFER, framebuffers.hdr.fb);
+	glBindFramebuffer(GL_FRAMEBUFFER, framebuffers.hdr_fb);
 
 	glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 	glClearDepth(1.0f); //1.0 is actually the default value to clear the depth buffer to, but FYI you can change it.

@@ -13,10 +13,10 @@ void Framebuffers::realloc(glm::uvec2 const &drawable_size) {
 	size = drawable_size;
 
 	//name texture if not yet named:
-	if (hdr.color_tex == 0) glGenTextures(1, &hdr.color_tex);
+	if (hdr_color_tex == 0) glGenTextures(1, &hdr_color_tex);
 
 	//resize texture:
-	glBindTexture(GL_TEXTURE_2D, hdr.color_tex);
+	glBindTexture(GL_TEXTURE_2D, hdr_color_tex);
 	glTexImage2D(GL_TEXTURE_2D, 0,
 		GL_RGB16F, //<-- storage will be RGB 16-bit half-float
 		size.x, size.y, 0, //width, height, border
@@ -30,34 +30,34 @@ void Framebuffers::realloc(glm::uvec2 const &drawable_size) {
 	glBindTexture(GL_TEXTURE_2D, 0);
 
 	//name renderbuffer if not yet named:
-	if (hdr.depth_rb == 0) glGenRenderbuffers(1, &hdr.depth_rb);
+	if (hdr_depth_rb == 0) glGenRenderbuffers(1, &hdr_depth_rb);
 
 	//resize renderbuffer:
-	glBindRenderbuffer(GL_RENDERBUFFER, hdr.depth_rb);
+	glBindRenderbuffer(GL_RENDERBUFFER, hdr_depth_rb);
 	glRenderbufferStorage(GL_RENDERBUFFER,
 		GL_DEPTH_COMPONENT24, //<-- storage will be 24-bit fixed point depth values
 		size.x, size.y);
 	glBindRenderbuffer(GL_RENDERBUFFER, 0);
 
 	//set up framebuffer if not yet named:
-	if (hdr.fb == 0) {
-		glGenFramebuffers(1, &hdr.fb);
-		glBindFramebuffer(GL_FRAMEBUFFER, hdr.fb);
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, hdr.color_tex, 0);
-		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, hdr.depth_rb);
+	if (hdr_fb == 0) {
+		glGenFramebuffers(1, &hdr_fb);
+		glBindFramebuffer(GL_FRAMEBUFFER, hdr_fb);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, hdr_color_tex, 0);
+		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, hdr_depth_rb);
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	}
 
-	glBindFramebuffer(GL_FRAMEBUFFER, hdr.fb);
+	glBindFramebuffer(GL_FRAMEBUFFER, hdr_fb);
 	gl_check_fb(); //<-- helper function to check framebuffer completeness
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 	//-------------------
 
-	if (bloom.blur_x_tex == 0) glGenTextures(1, &bloom.blur_x_tex);
+	if (blur_x_tex == 0) glGenTextures(1, &blur_x_tex);
 
 	//resize texture:
-	glBindTexture(GL_TEXTURE_2D, bloom.blur_x_tex);
+	glBindTexture(GL_TEXTURE_2D, blur_x_tex);
 	glTexImage2D(GL_TEXTURE_2D, 0,
 		GL_RGB16F, //<-- storage will be RGB 16-bit half-float
 		size.x, size.y, 0, //width, height, border
@@ -71,14 +71,14 @@ void Framebuffers::realloc(glm::uvec2 const &drawable_size) {
 	glBindTexture(GL_TEXTURE_2D, 0);
 
 	//set up framebuffer if not yet named:
-	if (bloom.blur_x_fb == 0) {
-		glGenFramebuffers(1, &bloom.blur_x_fb);
-		glBindFramebuffer(GL_FRAMEBUFFER, bloom.blur_x_fb);
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, bloom.blur_x_tex, 0);
+	if (blur_x_fb == 0) {
+		glGenFramebuffers(1, &blur_x_fb);
+		glBindFramebuffer(GL_FRAMEBUFFER, blur_x_fb);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, blur_x_tex, 0);
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	}
 
-	glBindFramebuffer(GL_FRAMEBUFFER, bloom.blur_x_fb);
+	glBindFramebuffer(GL_FRAMEBUFFER, blur_x_fb);
 	gl_check_fb(); //<-- helper function to check framebuffer completeness
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
@@ -145,7 +145,7 @@ void Framebuffers::tone_map() {
 	glBindVertexArray(empty_vao);
 
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, hdr.color_tex);
+	glBindTexture(GL_TEXTURE_2D, hdr_color_tex);
 
 	glDrawArrays(GL_TRIANGLES, 0, 3);
 
@@ -299,14 +299,14 @@ void Framebuffers::add_bloom() {
 	glDisable(GL_BLEND);
 	glDisable(GL_DEPTH_TEST);
 
-	//blur hdr.color_tex in the X direction, store into bloom.blur_x_tex:
-	glBindFramebuffer(GL_FRAMEBUFFER, bloom.blur_x_fb);
+	//blur hdr_color_tex in the X direction, store into blur_x_tex:
+	glBindFramebuffer(GL_FRAMEBUFFER, blur_x_fb);
 
 	glUseProgram(blur_x_program->program);
 	glBindVertexArray(empty_vao);
 
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, hdr.color_tex);
+	glBindTexture(GL_TEXTURE_2D, hdr_color_tex);
 
 	glDrawArrays(GL_TRIANGLES, 0, 3);
 
@@ -316,8 +316,8 @@ void Framebuffers::add_bloom() {
 	glUseProgram(0);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-	//blur bloom.blur_x_tex in the Y direction, store back into hdr.color_tex:
-	glBindFramebuffer(GL_FRAMEBUFFER, hdr.fb);
+	//blur blur_x_tex in the Y direction, store back into hdr_color_tex:
+	glBindFramebuffer(GL_FRAMEBUFFER, hdr_fb);
 
 	glEnable(GL_BLEND);
 	glBlendEquation(GL_FUNC_ADD);
@@ -327,7 +327,7 @@ void Framebuffers::add_bloom() {
 	glBindVertexArray(empty_vao);
 
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, bloom.blur_x_tex);
+	glBindTexture(GL_TEXTURE_2D, blur_x_tex);
 
 	glDrawArrays(GL_TRIANGLES, 0, 3);
 
