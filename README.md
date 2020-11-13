@@ -1,20 +1,18 @@
-# (TODO: your game's title)
+# 15-466 Offscreen Rendering / Framebuffer Example
 
-Author: (TODO: your name)
-
-Design: (TODO: In two sentences or fewer, describe what is new and interesting about your game.)
-
-Text Drawing: (TODO: how does the text drawing in this game work? Is text precomputed? Rendered at runtime? What files or utilities are involved?)
-
-Screen Shot:
+This example stores high-dynamic-range linear lighting information to an offscreen buffer (in 16-bit-per-channel floating point), blurs that information t
 
 ![Screen Shot](screenshot.png)
 
-How To Play:
+Key implementation notes:
+ - a new shader, `LitGlowColorTextureProgram`, is used to make the headlights and taillights emit light (notice also the special loading code that sets up the scene to use this shader for those objects)
+ - PlayMode::draw calls `framebuffers.realloc` in order to keep offscreen render targets the same size as the game window
+ - PlayMode::draw uses `glBindFramebuffer` to draw to a (non-screen) framebuffer
+ - helper functions in Framebuffers.cpp are used to add bloom and to tone map
 
-(TODO: describe the controls and (if needed) goals/strategy.)
-
-Sources: (TODO: list a source URL for any assets you did not create yourself. Make sure you have a license for the asset.)
-
-This game was built with [NEST](NEST.md).
-
+Areas for modification or improvement:
+ - `ToneMapProgram` (in Framebuffers.cpp) is a good place to adjust the tone mapping curve. Several commented-out examples are there to play with.
+ - `bloom_kernel` (in Framebuffers.cpp) computes the blur kernel used for the bloom effect, while `KERNEL_RADIUS` sets its size.
+ - the strength of the bloom effect is set by the opacity of the color returned by `BlurYProgram`. Set it to 1.0 and you'll have an "everything looks blurry" effect instead.
+ - could use different kernels or sizes for `BlurXProgram` and `BlurYProgram` to make non-symmetric blurs for artistic effect
+ - many games compute bloom effects at lower resolution (1/2 or even 1/4) because they are blurry anyway; could consider using a shader (or glBlitFramebuffer) to downsample before `blur_x_program` is run and to upsample after `blur_y_program` is run (you'll also need a few lower-resolution temporary framebuffers to sample to/from)
