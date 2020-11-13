@@ -1,7 +1,9 @@
 #include "PlayMode.hpp"
 
 #include "LitColorTextureProgram.hpp"
+#include "LitGlowColorTextureProgram.hpp"
 
+#include "Framebuffers.hpp"
 #include "DrawLines.hpp"
 #include "Mesh.hpp"
 #include "Load.hpp"
@@ -13,9 +15,11 @@
 #include <random>
 
 GLuint hexapod_meshes_for_lit_color_texture_program = 0;
+GLuint hexapod_meshes_for_lit_glow_color_texture_program = 0;
 Load< MeshBuffer > hexapod_meshes(LoadTagDefault, []() -> MeshBuffer const * {
 	MeshBuffer const *ret = new MeshBuffer(data_path("hexapod.pnct"));
 	hexapod_meshes_for_lit_color_texture_program = ret->make_vao_for_program(lit_color_texture_program->program);
+	hexapod_meshes_for_lit_glow_color_texture_program = ret->make_vao_for_program(lit_glow_color_texture_program->program);
 	return ret;
 });
 
@@ -26,18 +30,27 @@ Load< Scene > hexapod_scene(LoadTagDefault, []() -> Scene const * {
 		scene.drawables.emplace_back(transform);
 		Scene::Drawable &drawable = scene.drawables.back();
 
-		drawable.pipeline = lit_color_texture_program_pipeline;
-
-		drawable.pipeline.vao = hexapod_meshes_for_lit_color_texture_program;
+		if (transform->name == "Headlight" || transform->name == "Taillight") {
+			drawable.pipeline = lit_glow_color_texture_program_pipeline;
+			drawable.pipeline.vao = hexapod_meshes_for_lit_glow_color_texture_program;
+			if (transform->name == "Headlight") {
+				drawable.pipeline.set_uniforms = [](){
+					glUniform3f(lit_glow_color_texture_program->LIGHT_EMISSION_vec3, 10.0f, 10.0f, 10.0f);
+				};
+			} else {
+				drawable.pipeline.set_uniforms = [](){
+					glUniform3f(lit_glow_color_texture_program->LIGHT_EMISSION_vec3, 12.0f, 1.0f, 1.0f);
+				};
+			}
+		} else {
+			drawable.pipeline = lit_color_texture_program_pipeline;
+			drawable.pipeline.vao = hexapod_meshes_for_lit_color_texture_program;
+		}
 		drawable.pipeline.type = mesh.type;
 		drawable.pipeline.start = mesh.start;
 		drawable.pipeline.count = mesh.count;
 
 	});
-});
-
-Load< Sound::Sample > dusty_floor_sample(LoadTagDefault, []() -> Sound::Sample const * {
-	return new Sound::Sample(data_path("dusty-floor.opus"));
 });
 
 PlayMode::PlayMode() : scene(*hexapod_scene) {
@@ -59,9 +72,6 @@ PlayMode::PlayMode() : scene(*hexapod_scene) {
 	if (scene.cameras.size() != 1) throw std::runtime_error("Expecting scene to have exactly one camera, but it has " + std::to_string(scene.cameras.size()));
 	camera = &scene.cameras.front();
 
-	//start music loop playing:
-	// (note: position will be over-ridden in update())
-	leg_tip_loop = Sound::loop_3D(*dusty_floor_sample, 1.0f, get_leg_tip_position(), 10.0f);
 }
 
 PlayMode::~PlayMode() {
@@ -146,9 +156,6 @@ void PlayMode::update(float elapsed) {
 		glm::vec3(0.0f, 0.0f, 1.0f)
 	);
 
-	//move sound to follow leg tip position:
-	leg_tip_loop->set_position(get_leg_tip_position(), 1.0f / 60.0f);
-
 	//move camera:
 	{
 
@@ -171,13 +178,6 @@ void PlayMode::update(float elapsed) {
 		camera->transform->position += move.x * right + move.y * forward;
 	}
 
-	{ //update listener to camera position:
-		glm::mat4x3 frame = camera->transform->make_local_to_parent();
-		glm::vec3 right = frame[0];
-		glm::vec3 at = frame[3];
-		Sound::listener.set_position_right(at, right, 1.0f / 60.0f);
-	}
-
 	//reset button press counters:
 	left.downs = 0;
 	right.downs = 0;
@@ -186,6 +186,9 @@ void PlayMode::update(float elapsed) {
 }
 
 void PlayMode::draw(glm::uvec2 const &drawable_size) {
+	//make sure framebuffers are the same size as the window:
+	framebuffers.realloc(drawable_size);
+
 	//update camera aspect ratio for drawable:
 	camera->aspect = float(drawable_size.x) / float(drawable_size.y);
 
@@ -197,7 +200,10 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	glUniform3fv(lit_color_texture_program->LIGHT_ENERGY_vec3, 1, glm::value_ptr(glm::vec3(1.0f, 1.0f, 0.95f)));
 	glUseProgram(0);
 
-	glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
+	//---- draw scene to HDR framebuffer ----
+	glBindFramebuffer(GL_FRAMEBUFFER, framebuffers.hdr.fb);
+
+	glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 	glClearDepth(1.0f); //1.0 is actually the default value to clear the depth buffer to, but FYI you can change it.
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -205,6 +211,14 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	glDepthFunc(GL_LESS); //this is the default depth comparison function, but FYI you can change it.
 
 	scene.draw(*camera);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	//apply a bloom effect:
+	framebuffers.add_bloom();
+
+	//copy scene to main window framebuffer:
+	framebuffers.tone_map();
 
 	{ //use DrawLines to overlay some text:
 		glDisable(GL_DEPTH_TEST);
@@ -228,9 +242,4 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 			glm::u8vec4(0xff, 0xff, 0xff, 0x00));
 	}
 	GL_ERRORS();
-}
-
-glm::vec3 PlayMode::get_leg_tip_position() {
-	//the vertex position here was read from the model in blender:
-	return lower_leg->make_local_to_world() * glm::vec4(-1.26137f, -11.861f, 0.0f, 1.0f);
 }
